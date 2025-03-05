@@ -5,6 +5,7 @@ import { BASE_URL } from "../constants/constants";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { addUser } from "../Slices/userSlice";
+import Footer from "./Footer";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -56,10 +57,12 @@ const Login = () => {
   };
 
   return (
-    <div>
-      <Header />
+    <div className=''>
+      <div className='absolute'>
+        <Header />
+      </div>
       <div
-        className='relative h-screen w-screen flex items-center justify-center'
+        className='relative h-screen  w-screen flex items-center justify-center'
         style={{
           backgroundImage: `url(${backgroundImage})`,
           backgroundSize: "cover",
@@ -71,7 +74,7 @@ const Login = () => {
         <div className='absolute inset-0 bg-black/30 backdrop-blur-3xl'></div>
 
         {/* Login Content */}
-        <div className='relative z-10 text-white text-3xl font-bold m-6'>
+        <div className='relative z-10 text-white text-3xl font-bold m-3.5'>
           <div className='w-full bg-neutral-100/30 backdrop-blur-2xl rounded-lg shadow dark:border md:mt-0 sm:max-w-md xl:p-0 dark:border-gray-700'>
             <div className='p-6 space-y-4 md:space-y-6 sm:p-8'>
               <h1 className='text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white'>
@@ -148,7 +151,7 @@ const Login = () => {
                 >
                   Sign in
                 </button>
-                <p className='text-sm font-light text-gray-500'>
+                <p className='text-sm font-light text-white'>
                   Don’t have an account yet?{" "}
                   <button
                     type='button'

@@ -37,7 +37,7 @@ const UserCard = ({ user, toasts }) => {
   };
 
   return (
-    <div className='card bg-base-300  md:w-96 mx-4 md:mx-0 shadow-sm'>
+    <div className='card bg-base-300  md:w-96 mx-2 md:mx-0 shadow-sm'>
       <figure>
         <img
           src={photoURL}

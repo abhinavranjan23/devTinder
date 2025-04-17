@@ -1,7 +1,7 @@
 {
   "name": "devtinder",
   "version": "1.0.0",
-  "description": "This i a social platform for developer",
+  "description": "This is a social platform for developer",
   "scripts": {
     "start": "vite",
     "build": "vite build",

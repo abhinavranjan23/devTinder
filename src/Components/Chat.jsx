@@ -1,8 +1,19 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { useParams } from "react-router-dom";
 import { BASE_URL } from "../constants/constants";
 import { createSocketConnection } from "../constants/socket";
 import { useSelector } from "react-redux";
+import {
+  getSharedKey,
+  encryptMessage,
+  decryptMessage,
+} from "../utils/encryption";
 
 const Chat = () => {
   const { targetUserId } = useParams();
@@ -19,40 +30,47 @@ const Chat = () => {
   const data = useSelector((store) => store.user?.data) || {};
   const { firstName, photoURL } = data;
 
-  // Fetch Chat Messages
+  // Generate shared key for E2EE (AES-256) once both IDs available
+  const encryptionKey = useMemo(() => {
+    if (!userId || !targetUserId) return null;
+    return getSharedKey(userId, targetUserId);
+  }, [userId, targetUserId]);
+
+  // Fetch and decrypt chat history
   const fetchChatMessage = useCallback(async () => {
+    if (!encryptionKey) return;
     try {
       const response = await fetch(`${BASE_URL}/chat/${targetUserId}`, {
         method: "GET",
         credentials: "include",
       });
-      const data = await response.json();
-      setNewMessage(data.data.message);
+      const { data } = await response.json();
+      const decrypted = data.message.map((msg) => ({
+        ...msg,
+        text: decryptMessage(msg.text, encryptionKey),
+      }));
+      setNewMessage(decrypted);
     } catch (err) {
       console.error("Error fetching chat messages:", err);
     }
-  }, [targetUserId]);
+  }, [targetUserId, encryptionKey]);
 
   // Fetch Friend Info
   const fetchChatFriendInfo = useCallback(async () => {
     try {
       const response = await fetch(
         `${BASE_URL}/user/chat/info/${targetUserId}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
+        { method: "GET", credentials: "include" }
       );
-      const data = await response.json();
-      setChatInfo(data.data);
+      const { data } = await response.json();
+      setChatInfo(data);
     } catch (err) {
       console.error("Error fetching chat info:", err);
     }
   }, [targetUserId]);
 
-  // Setup WebSocket Connection
   useEffect(() => {
-    if (!userId || !targetUserId) return;
+    if (!userId || !targetUserId || !encryptionKey) return;
 
     const socket = createSocketConnection();
     socketRef.current = socket;
@@ -60,7 +78,8 @@ const Chat = () => {
     socket.emit("joinChat", { firstName, userId, targetUserId });
 
     socket.on("messageReceived", (message) => {
-      setNewMessage((prevMsg) => [...prevMsg, message]);
+      const decryptedText = decryptMessage(message.text, encryptionKey);
+      setNewMessage((prev) => [...prev, { ...message, text: decryptedText }]);
     });
 
     socket.on("typing", () => setTyping(true));
@@ -71,37 +90,39 @@ const Chat = () => {
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, [userId, targetUserId, firstName]);
+  }, [userId, targetUserId, encryptionKey, firstName]);
 
-  // Auto-scroll to the latest message
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [newMessage, typing]); // Add `typing` as a dependency
+  }, [newMessage, typing]);
 
-  // Handle Message Sending
   const sendMessage = () => {
-    if (!socketRef.current || !firstName || !inputMessage.trim()) return;
+    if (
+      !socketRef.current ||
+      !firstName ||
+      !inputMessage.trim() ||
+      !encryptionKey
+    )
+      return;
+    const encrypted = encryptMessage(inputMessage.trim(), encryptionKey);
 
     socketRef.current.emit("sendMessage", {
       firstName,
       userId,
       targetUserId,
-      text: inputMessage.trim(),
+      text: encrypted,
       userImage: photoURL,
     });
 
     setInputMessage("");
   };
 
-  // Handle Typing Indicator
   const handleInputChange = (e) => {
     setInputMessage(e.target.value);
-
     if (socketRef.current) {
       socketRef.current.emit("typing", { userId, targetUserId });
-
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
         socketRef.current.emit("stopTyping", { userId, targetUserId });
@@ -158,7 +179,7 @@ const Chat = () => {
             </div>
             <div
               className={`chat-bubble ${
-                msg.senderId?._id === userId ? "bg-gray-600" : "bg-gray-800"
+                msg.senderId?._id === userId ? "bg-gray-100" : "bg-gray-200"
               }`}
             >
               {msg.text}
